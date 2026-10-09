@@ -1,0 +1,39 @@
+{{/*
+`helm test` is the check a human runs after an install and CI runs on every change: the pod is Running,
+but is the service answering? A chart that only checks for a Running pod passes on a pod stuck behind a
+selector that does not match.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "game-server.fullname" . }}-test-ready
+  labels:
+    {{- include "game-server.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: wget
+      image: busybox:1.37
+      command: ["sh", "-c"]
+      args:
+        - |
+          set -e
+          for path in {{ .Values.probes.readiness.path }} {{ .Values.probes.startup.path }}; do
+            echo "checking $path through the service"
+            wget -q -T 5 -O /dev/null "http://{{ include "game-server.fullname" . }}:{{ .Values.service.port }}$path"
+          done
+          echo "the service answers on every probe path"
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]

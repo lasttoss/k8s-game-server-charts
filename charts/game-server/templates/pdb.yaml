@@ -1,0 +1,18 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{/*
+Without a budget, a node drain evicts every replica it holds at once: the scheduler is allowed to, the
+pods are all "disruptable", and a rolling node upgrade becomes an outage. minAvailable 1 is the smallest
+budget that is worth having.
+*/}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "game-server.fullname" . }}
+  labels:
+    {{- include "game-server.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "game-server.selectorLabels" . | nindent 6 }}
+{{- end }}

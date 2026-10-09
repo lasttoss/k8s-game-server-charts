@@ -1,0 +1,84 @@
+# The values a cluster would actually be given. Everything here is safe to commit: a chart that can
+# generate a secret is a chart that leaks one, so secrets are referenced by name (see secret below).
+
+replicaCount: 2
+
+image:
+  repository: hashicorp/http-echo
+  # The chart's default image answers 200 to anything, so that `make kind-up` proves the chart rather
+  # than the image. Point this at your own server for a real deployment.
+  tag: "1.0"
+  pullPolicy: IfNotPresent
+
+# A game server is not a web API: it holds state in memory, so the pod that goes away takes its matches
+# with it. Hence terminationGracePeriodSeconds and maxUnavailable: 0 below.
+terminationGracePeriodSeconds: 30
+args:
+  - -listen=:8080
+  - -text={"ok":true}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Probes: readiness is the endpoint that says "give me traffic" (it may touch the database), liveness
+# must not be - a database blip that restarts every pod turns a bad minute into an outage.
+probes:
+  startup:
+    path: /
+    periodSeconds: 2
+    failureThreshold: 30
+  readiness:
+    path: /
+    periodSeconds: 5
+    failureThreshold: 3
+  liveness:
+    # A TCP check on purpose: it answers "is this process alive", which is all liveness should ask.
+    tcpSocket: true
+    periodSeconds: 10
+    failureThreshold: 6
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # Scale up when players arrive, scale down slowly: a room full of players is worth more than the CPU
+  # it costs to keep it.
+  scaleDownStabilizationSeconds: 300
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+  # Only pods with this label may connect to the service port. Empty means "any namespace".
+  allowFromNamespaceSelector: {}
+
+podAntiAffinity:
+  # Spread replicas across nodes when the cluster has more than one, without refusing to schedule.
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: ""
+  # The token is not mounted: a game server that does not talk to the API server has no reason to hold
+  # credentials for it, and a stolen token is a much shorter walk to the next pod.
+
+env: []
+#  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+#    value: http://otel-collector:4317
+
+# Secrets are never values. Either name an existing Secret (an ExternalSecret syncing from a vault is the
+# usual way it gets there), or let the templates refuse to render - see templates/secret.yaml.
+secret:
+  existingSecret: ""

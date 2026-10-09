@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "game-server.fullname" . }}
+  labels:
+    {{- include "game-server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # A game server pod hosts matches, so a rollout must not take one down before its successor is
+      # ready: maxUnavailable 0 is the difference between a deploy and a disconnect screen.
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "game-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "game-server.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Force a restart when the config changes, which is what makes a config rollout a rollout.
+        checksum/env: {{ toJson .Values.env | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "game-server.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if .Values.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "game-server.selectorLabels" . | nindent 20 }}
+      {{- end }}
+      containers:
+        - name: game-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+          # The secret is referenced, never held: the chart's own guard refuses to render if it is not
+          # there, so a pod can never start with an empty password and a 500 for a login.
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secret.existingSecret }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          {{- with .Values.probes.startup }}
+          startupProbe:
+            httpGet:
+              path: {{ .path }}
+              port: http
+            periodSeconds: {{ .periodSeconds }}
+            failureThreshold: {{ .failureThreshold }}
+          {{- end }}
+          {{- with .Values.probes.readiness }}
+          readinessProbe:
+            httpGet:
+              path: {{ .path }}
+              port: http
+            periodSeconds: {{ .periodSeconds }}
+            failureThreshold: {{ .failureThreshold }}
+          {{- end }}
+          {{- with .Values.probes.liveness }}
+          livenessProbe:
+            {{- if .tcpSocket }}
+            tcpSocket:
+              port: http
+            {{- else }}
+            httpGet:
+              path: {{ .path }}
+              port: http
+            {{- end }}
+            periodSeconds: {{ .periodSeconds }}
+            failureThreshold: {{ .failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

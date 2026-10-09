@@ -1,0 +1,6 @@
+apiVersion: v2
+name: game-server
+description: A game server on Kubernetes - probes that know the difference between a blip and a dead pod, a rollover that does not disconnect a match, and a chart that will not hold a secret
+type: application
+version: 0.1.0
+appVersion: "1.0"

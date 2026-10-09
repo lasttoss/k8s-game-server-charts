@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+      - name: Lint the chart strictly
+        run: helm lint charts/game-server --strict --set secret.existingSecret=game-server-secret --set secret.allowMissing=true
+      - name: The chart must refuse to render without a secret
+        # A guard nobody tests is a guard that quietly stops working.
+        run: make guard
+      - name: Render and check the claims
+        run: |
+          helm template dev charts/game-server --set secret.existingSecret=game-server-secret --set secret.allowMissing=true > /tmp/render.yaml
+          for claim in "maxUnavailable: 0" "minAvailable: 1" "automountServiceAccountToken: false" \
+                       "readOnlyRootFilesystem: true" "tcpSocket" "kind: HorizontalPodAutoscaler" \
+                       "kind: PodDisruptionBudget" "kind: NetworkPolicy"; do
+            grep -q "$claim" /tmp/render.yaml || { echo "the chart no longer has: $claim"; exit 1; }
+          done
+          echo "every claim is in the manifest"
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: game-server-charts
+      - name: Install it on a cluster and ask the service
+        # Linting YAML does not prove a NetworkPolicy lets the service answer. This does.
+        run: |
+          kubectl create secret generic game-server-secret --from-literal=server_key=ci-demo
+          helm upgrade --install dev charts/game-server --namespace default \
+            --set secret.existingSecret=game-server-secret --wait --timeout 180s
+          kubectl rollout status deploy/dev-game-server --timeout=180s
+          helm test dev --namespace default --timeout 180s
+          kubectl get hpa,pdb,netpol -l app.kubernetes.io/instance=dev

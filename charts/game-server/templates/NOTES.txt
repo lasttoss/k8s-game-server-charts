@@ -1,0 +1,17 @@
+{{ .Chart.Name }} {{ .Chart.Version }} is installed as {{ .Release.Name }} in {{ .Release.Namespace }}.
+
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl port-forward svc/{{ include "game-server.fullname" . }} 8080:{{ .Values.service.port }}
+
+  helm test {{ .Release.Name }}   # fetches the probe paths through the service
+
+{{- if .Values.autoscaling.enabled }}
+
+Scaling between {{ .Values.autoscaling.minReplicas }} and {{ .Values.autoscaling.maxReplicas }} replicas on
+{{ .Values.autoscaling.targetCPUUtilizationPercentage }}% CPU. Watch it happen:
+
+  kubectl get hpa {{ include "game-server.fullname" . }} -w
+{{- end }}
+
+A rollout takes no pod down before its successor is ready (maxUnavailable: 0) and drains for
+{{ .Values.terminationGracePeriodSeconds }}s, so a deploy does not end the matches in progress.

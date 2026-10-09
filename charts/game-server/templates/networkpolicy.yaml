@@ -1,0 +1,56 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "game-server.fullname" . }}
+  labels:
+    {{- include "game-server.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "game-server.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        # A pod in this namespace may connect: the game server's own readiness check, the `helm test`
+        # hook, an edge proxy, a sidecar. Written as podSelector rather than an empty namespaceSelector
+        # because that is the rule a CNI enforces the same way everywhere - kindnet allowed the
+        # namespaceSelector form through and dropped the traffic, which is exactly the kind of thing that
+        # is found by running the chart rather than by reading it.
+        - podSelector: {}
+        {{- with .Values.networkPolicy.allowFromNamespaceSelector }}
+        - namespaceSelector:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+      ports:
+        # A number, not the port's name. The API accepts a named port here and a CNI is then supposed to
+        # resolve it against the pods the policy selects; kindnet does not, and the failure looks like a
+        # service that answers the kubelet and nobody else.
+        - port: {{ .Values.service.port }}
+          protocol: TCP
+  egress:
+    # DNS, or nothing in the cluster can resolve anything.
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # And the answers to whoever is allowed to connect. This looks redundant - the ingress rule above
+    # already allows the connection - but a CNI that evaluates egress packets without tracking which
+    # inbound connection they belong to drops the response, and the symptom is a service that answers
+    # the kubelet's probes and times out for every real client. `helm test` on kind found exactly that:
+    # the chart blocked its own service, and the fix is this rule.
+    - to:
+        - podSelector: {}
+      ports:
+        - port: {{ .Values.service.port }}
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
