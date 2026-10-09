@@ -64,6 +64,20 @@ MIT. See `LICENSE`, and `PROVENANCE.md` for where this comes from.
 
 ## The incident as a picture
 
+```mermaid
+%% Source for docs/diagrams/networkpolicy-egress-incident.html
+%% The one line to take away: the response packets of a server are egress of that server's pod.
+flowchart LR
+  C["client<br/>helm test pod"] -->|"TCP SYN to :8080"| NP{"egress policy<br/>of the game-server pod"}
+  NP -->|"allowed<br/>UDP/TCP :53"| DNS[("CoreDNS")]
+  NP -. "response packets:<br/>dropped" .-> C
+  NP -->|"allowed once the<br/>return path is in the policy"| S["game-server pod<br/>:8080"]
+  K["kubelet probe"] -->|"direct pod IP,<br/>not policy-bound"| S
+  classDef bad stroke:#b3261e,stroke-width:2px,stroke-dasharray:4 4;
+  class NP bad;
+```
+
+
 `docs/diagrams/networkpolicy-egress-incident.html` is a self-contained explanation of the fault this chart
 shipped with: a policy that allowed ingress and only DNS outwards, and a service that answered the kubelet
 in five microseconds while refusing every client. It is HTML with inline SVG rather than a PNG for the same
