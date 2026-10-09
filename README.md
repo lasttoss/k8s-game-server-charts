@@ -61,3 +61,20 @@ one that is right - the right one is players per pod.
 ## License
 
 MIT. See `LICENSE`, and `PROVENANCE.md` for where this comes from.
+
+## The incident as a picture
+
+`docs/diagrams/networkpolicy-egress-incident.html` is a self-contained explanation of the fault this chart
+shipped with: a policy that allowed ingress and only DNS outwards, and a service that answered the kubelet
+in five microseconds while refusing every client. It is HTML with inline SVG rather than a PNG for the same
+reason the chart is YAML — the source is reviewable and diffable, and the image is a build artifact:
+
+```bash
+make diagram   # exports a PNG using a local chromium, if there is one
+```
+
+`docs/diagrams/networkpolicy-egress-incident.mmd` is the same picture as Mermaid, for the places that
+render Markdown and not HTML.
+
+**The rule it is drawn to explain:** a pod that serves traffic has to allow the traffic back out. "Egress
+only what it starts itself" describes a client; for a server, the response *is* egress of that pod.

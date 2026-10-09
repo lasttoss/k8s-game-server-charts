@@ -1,0 +1,10 @@
+%% Source for docs/diagrams/networkpolicy-egress-incident.html
+%% The one line to take away: the response packets of a server are egress of that server's pod.
+flowchart LR
+  C["client<br/>helm test pod"] -->|"TCP SYN to :8080"| NP{"egress policy<br/>of the game-server pod"}
+  NP -->|"allowed<br/>UDP/TCP :53"| DNS[("CoreDNS")]
+  NP -. "response packets:<br/>dropped" .-> C
+  NP -->|"allowed once the<br/>return path is in the policy"| S["game-server pod<br/>:8080"]
+  K["kubelet probe"] -->|"direct pod IP,<br/>not policy-bound"| S
+  classDef bad stroke:#b3261e,stroke-width:2px,stroke-dasharray:4 4;
+  class NP bad;

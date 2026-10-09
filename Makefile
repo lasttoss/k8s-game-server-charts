@@ -5,7 +5,7 @@ CHART   := charts/game-server
 # is the name it looks for. In a real cluster an ExternalSecret puts it there.
 SET     := --set secret.existingSecret=game-server-secret
 
-.PHONY: kind-up kind-down render guard install verify load uninstall
+.PHONY: kind-up kind-down render guard install verify load uninstall diagram
 
 # A cluster that proves the chart, in a minute, on a laptop.
 kind-up:
@@ -39,3 +39,8 @@ verify: kind-up install
 
 uninstall:
 	helm uninstall $(RELEASE) --namespace default || true
+
+# The image is a build artifact: the source is the HTML, and a browser is what turns one into the other.
+diagram:
+	@if command -v chromium >/dev/null 2>&1; then B=chromium; elif command -v google-chrome >/dev/null 2>&1; then B=google-chrome; else echo "no chromium on PATH: open docs/diagrams/*.html in a browser and export"; exit 0; fi; \
+	$$B --headless --screenshot=docs/diagrams/networkpolicy-egress-incident.png --window-size=1200,1000 docs/diagrams/networkpolicy-egress-incident.html && echo "wrote docs/diagrams/networkpolicy-egress-incident.png"

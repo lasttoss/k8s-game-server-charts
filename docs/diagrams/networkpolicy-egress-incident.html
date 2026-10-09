@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>The response packets were the egress — a NetworkPolicy incident</title>
+<style>
+  :root { --ink:#151412; --paper:#f7f4ee; --rule:#cfc7b8; --red:#b3261e; --green:#1a6b3c; --amber:#8a5a00; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font:16px/1.5 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+  .sheet { max-width:1080px; margin:0 auto; padding:56px 40px 72px; }
+  .kicker { font:600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--amber); }
+  h1 { font-size:38px; line-height:1.15; margin:.35em 0 .2em; letter-spacing:-.01em; }
+  .dek { font-size:19px; color:#463f36; max-width:74ch; margin:0 0 8px; }
+  .meta { font:12px/1.6 ui-monospace, Menlo, monospace; color:#6b6357; border-top:1px solid var(--rule);
+          padding-top:10px; margin-top:22px; }
+  svg { display:block; width:100%; height:auto; margin:34px 0 0; }
+  table { border-collapse:collapse; width:100%; margin-top:30px; font-size:15px; }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th { font:600 11px/1 ui-monospace, Menlo, monospace; letter-spacing:.1em; text-transform:uppercase;
+       color:#6b6357; }
+  .ok { color:var(--green); font-weight:600; } .no { color:var(--red); font-weight:600; }
+  .rule { margin-top:34px; border-left:4px solid var(--ink); padding:14px 0 14px 20px; background:#fffdf8; }
+  .rule b { display:block; font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px; }
+  .rule p { margin:0; font-size:18px; }
+  footer { margin-top:40px; font:12px/1.7 ui-monospace, Menlo, monospace; color:#6b6357;
+           border-top:1px solid var(--rule); padding-top:12px; }
+  text { font-family:"Iowan Old Style", Palatino, Georgia, serif; }
+  .mono { font-family:ui-monospace, Menlo, monospace; }
+</style>
+<div class="sheet">
+  <div class="kicker">Incident · k8s-game-server-charts</div>
+  <h1>The response packets were the egress</h1>
+  <p class="dek">A NetworkPolicy that allowed ingress on the game server's port and egress only to DNS
+    produced a pod that was <span class="mono">1/1 Running</span>, a kubelet probe that answered in five
+    microseconds, and a client that hung until it timed out.</p>
+  <div class="meta">source: docs/incidents/networkpolicy-blocked-its-own-service.md · verified on kind
+    (kindnet) · chart commit c2328f3 · the fix is in templates/networkpolicy.yaml</div>
+
+  <svg viewBox="0 0 1040 640" role="img" aria-label="A policy that allows ingress and DNS-only egress drops the response packets of the service itself">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#151412"/>
+      </marker>
+      <marker id="ared" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#b3261e"/>
+      </marker>
+      <marker id="agreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#1a6b3c"/>
+      </marker>
+    </defs>
+
+    <!-- column captions -->
+    <text x="30" y="28" font-size="12" letter-spacing="1.6" fill="#6b6357" class="mono">1 · WHAT THE POLICY SAID</text>
+    <text x="380" y="28" font-size="12" letter-spacing="1.6" fill="#6b6357" class="mono">2 · WHAT THE CLUSTER DID</text>
+    <text x="760" y="28" font-size="12" letter-spacing="1.6" fill="#6b6357" class="mono">3 · WHAT FIXED IT</text>
+    <line x1="352" y1="42" x2="352" y2="560" stroke="#cfc7b8"/>
+    <line x1="732" y1="42" x2="732" y2="560" stroke="#cfc7b8"/>
+
+    <!-- column 1: the policy -->
+    <rect x="30" y="56" width="292" height="150" rx="4" fill="#fffdf8" stroke="#151412" stroke-width="2"/>
+    <text x="46" y="82" font-size="15" font-weight="600">NetworkPolicy · egress</text>
+    <rect x="46" y="96" width="260" height="44" rx="3" fill="#eef5ef" stroke="#1a6b3c"/>
+    <text x="58" y="114" font-size="14" class="mono">allow UDP/TCP :53 to CoreDNS</text>
+    <text x="58" y="130" font-size="12" fill="#1a6b3c" class="mono">✓ the only rule there was</text>
+    <rect x="46" y="150" width="260" height="44" rx="3" fill="#fdeeed" stroke="#b3261e" stroke-dasharray="5 4"/>
+    <text x="58" y="168" font-size="14" class="mono">…and nothing else</text>
+    <text x="58" y="184" font-size="12" fill="#b3261e" class="mono">✗ no return path</text>
+
+    <rect x="30" y="222" width="292" height="92" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="46" y="248" font-size="15" font-weight="600">NetworkPolicy · ingress</text>
+    <rect x="46" y="262" width="260" height="38" rx="3" fill="#eef5ef" stroke="#1a6b3c"/>
+    <text x="58" y="286" font-size="14" class="mono">:8080 from podSelector {}</text>
+    <text x="46" y="312" font-size="12" fill="#6b6357">correct, and not the problem</text>
+
+    <text x="30" y="352" font-size="13" fill="#6b6357">The reading that felt right:</text>
+    <text x="30" y="374" font-size="15" font-style="italic">“a server should egress only what</text>
+    <text x="30" y="394" font-size="15" font-style="italic">it starts itself.”</text>
+    <text x="30" y="424" font-size="13" fill="#b3261e">A rule for clients. The pod was a server.</text>
+
+    <!-- column 2: behaviour -->
+    <rect x="380" y="56" width="322" height="66" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="396" y="80" font-size="15" font-weight="600">kubectl get pods</text>
+    <text x="396" y="104" font-size="16" class="mono">game-server-1/2  <tspan fill="#1a6b3c">1/1 Running</tspan></text>
+
+    <rect x="380" y="136" width="322" height="66" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="396" y="160" font-size="15" font-weight="600">kubelet → the same pod</text>
+    <text x="396" y="184" font-size="16" class="mono">HTTP 200 · <tspan fill="#1a6b3c">5 µs</tspan></text>
+
+    <rect x="380" y="216" width="322" height="66" rx="4" fill="#fdeeed" stroke="#b3261e" stroke-width="2"/>
+    <text x="396" y="240" font-size="15" font-weight="600">helm test → the Service</text>
+    <text x="396" y="264" font-size="16" class="mono" fill="#b3261e">connection hangs → timeout</text>
+
+    <text x="380" y="312" font-size="13" fill="#6b6357">Two paths to one port:</text>
+    <path d="M392 330 L392 372" stroke="#1a6b3c" stroke-width="2" marker-end="url(#agreen)"/>
+    <text x="404" y="356" font-size="14">probe: pod IP, not policy-bound</text>
+    <path d="M392 386 L392 428" stroke="#b3261e" stroke-width="2" marker-end="url(#ared)"/>
+    <text x="404" y="412" font-size="14">service: pod IP, policy-bound</text>
+    <text x="380" y="456" font-size="13" fill="#6b6357">The health check was answering the</text>
+    <text x="380" y="476" font-size="13" fill="#6b6357">question “is the process up” while the</text>
+    <text x="380" y="496" font-size="13" fill="#6b6357">question was “can a player reach it”.</text>
+
+    <!-- column 3: the fix -->
+    <rect x="760" y="56" width="250" height="176" rx="4" fill="#eef5ef" stroke="#1a6b3c" stroke-width="2"/>
+    <text x="776" y="82" font-size="15" font-weight="600">egress, corrected</text>
+    <text x="776" y="108" font-size="13" class="mono">- to: podSelector: {}</text>
+    <text x="776" y="128" font-size="13" class="mono">  ports: [8080]</text>
+    <text x="776" y="158" font-size="13" fill="#1a6b3c">✓ TCP, not UDP — the reply to</text>
+    <text x="776" y="176" font-size="13" fill="#1a6b3c">  an attacker-shaped packet</text>
+    <text x="776" y="194" font-size="13" fill="#1a6b3c">  is not covered by the query</text>
+    <text x="776" y="212" font-size="13" fill="#1a6b3c">  that opened it</text>
+
+    <path d="M776 260 L776 300" stroke="#1a6b3c" stroke-width="2" marker-end="url(#agreen)"/>
+    <text x="788" y="286" font-size="14">helm test Succeeded</text>
+
+    <rect x="760" y="322" width="250" height="120" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="776" y="348" font-size="14" font-weight="600">Why kindnet, not conntrack</text>
+    <text x="776" y="372" font-size="13" fill="#463f36">A reply inside an established</text>
+    <text x="776" y="390" font-size="13" fill="#463f36">connection is “part of it” to</text>
+    <text x="776" y="408" font-size="13" fill="#463f36">conntrack — and still evaluated</text>
+    <text x="776" y="426" font-size="13" fill="#463f36">as egress by the CNI.</text>
+
+    <!-- what could not see it -->
+    <rect x="30" y="498" width="980" height="62" rx="4" fill="#fffdf8" stroke="#cfc7b8"/>
+    <text x="46" y="522" font-size="13" class="mono" fill="#6b6357">WHAT PASSED WHILE THE SERVICE WAS UNREACHABLE</text>
+    <text x="46" y="546" font-size="14" class="mono">helm lint --strict <tspan fill="#1a6b3c">0 failed</tspan> · helm template <tspan fill="#1a6b3c">12 objects</tspan> · rollout status <tspan fill="#1a6b3c">ready</tspan></text>
+  </svg>
+
+  <table>
+    <thead><tr><th>Policy under test</th><th>helm test</th><th>What it isolated</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ingress + egress (DNS only)</td><td class="no">Failed</td><td>the shipped state, reproduced</td></tr>
+      <tr><td class="mono">ingress only (no egress)</td><td class="ok">Succeeded</td><td>ingress was correct — the fault is in egress</td></tr>
+      <tr><td class="mono">ingress + egress (DNS + all pods)</td><td class="ok">Succeeded</td><td>the missing rule is the return path</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rule">
+    <b>Rule worth keeping</b>
+    <p>A pod that serves traffic has to allow the traffic back out. “Egress only what it starts itself”
+      describes a client; for a server, the response <em>is</em> egress of that pod.</p>
+  </div>
+
+  <footer>
+    Three experiments, one variable each: that is the whole investigation.<br>
+    The lesson for the pipeline is in the grey box: lint and template both passed on a stack nobody could
+    reach, so the chart's CI installs it on a kind cluster and runs <span class="mono">helm test</span>.
+  </footer>
+</div>
+</html>
