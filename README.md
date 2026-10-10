@@ -58,27 +58,31 @@ Not a chart for a stateful game backend (a database per instance needs an operat
 replacement for capacity planning: the HPA scales on CPU, which is the metric that is available, not the
 one that is right - the right one is players per pod.
 
+## Repository standard
+
+Six items, applied where they mean something rather than everywhere. The exclusions are the point of
+the table: an item that cannot be honest in a repository of this kind is left out and said so.
+
+| Item | Here |
+|---|---|
+| `docker-compose.yml` | not applicable - the deliverable is the chart, there is no application image here |
+| `Dockerfile` | not applicable - same reason: nothing is built, the chart is rendered |
+| Helm chart | ✓ `charts/game-server/` |
+| Diagram | ✓ `docs/figures/networkpolicy-egress-incident.html` plus the exported PNG the README embeds |
+| Tests, run in CI | ✓ Lint the chart strictly, The chart must refuse to render without a secret, Render and check the claims, Install it on a cluster and ask the service |
+| CI + `Makefile` | ✓ `.github/workflows/ci.yml` and `Makefile` |
+
 ## License
 
 MIT. See `LICENSE`, and `PROVENANCE.md` for where this comes from.
 
 ## The incident as a picture
 
-```mermaid
-%% Source for docs/diagrams/networkpolicy-egress-incident.html
-%% The one line to take away: the response packets of a server are egress of that server's pod.
-flowchart LR
-  C["client<br/>helm test pod"] -->|"TCP SYN to :8080"| NP{"egress policy<br/>of the game-server pod"}
-  NP -->|"allowed<br/>UDP/TCP :53"| DNS[("CoreDNS")]
-  NP -. "response packets:<br/>dropped" .-> C
-  NP -->|"allowed once the<br/>return path is in the policy"| S["game-server pod<br/>:8080"]
-  K["kubelet probe"] -->|"direct pod IP,<br/>not policy-bound"| S
-  classDef bad stroke:#b3261e,stroke-width:2px,stroke-dasharray:4 4;
-  class NP bad;
-```
+![A policy that allows ingress and DNS-only egress drops the response packets of the service itself](docs/figures/networkpolicy-egress-incident.png)
 
+**Figure 1.** The response packets were the egress — a NetworkPolicy incident
 
-`docs/diagrams/networkpolicy-egress-incident.html` is a self-contained explanation of the fault this chart
+`docs/figures/networkpolicy-egress-incident.html` is a self-contained explanation of the fault this chart
 shipped with: a policy that allowed ingress and only DNS outwards, and a service that answered the kubelet
 in five microseconds while refusing every client. It is HTML with inline SVG rather than a PNG for the same
 reason the chart is YAML — the source is reviewable and diffable, and the image is a build artifact:
@@ -87,8 +91,8 @@ reason the chart is YAML — the source is reviewable and diffable, and the imag
 make diagram   # exports a PNG using a local chromium, if there is one
 ```
 
-`docs/diagrams/networkpolicy-egress-incident.mmd` is the same picture as Mermaid, for the places that
-render Markdown and not HTML.
+The figure is embedded above as a PNG; `docs/figures/networkpolicy-egress-incident.html` is the source it
+is exported from.
 
 **The rule it is drawn to explain:** a pod that serves traffic has to allow the traffic back out. "Egress
 only what it starts itself" describes a client; for a server, the response *is* egress of that pod.
