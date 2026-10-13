@@ -52,6 +52,8 @@ packets without tracking which inbound connection they belong to. The fix is one
 pods that may connect - written up in [`docs/incidents/`](docs/incidents/networkpolicy-blocked-its-own-service.md),
 because the next person to see "the service answers the kubelet and nobody else" should recognise it.
 
+A second incident is written up the same way in [`docs/incidents/redis-clients-from-one-pod.md`](docs/incidents/redis-clients-from-one-pod.md): a cache client created per match, 10,120 connections from one pod, and the three suspects that were measured innocent before the cache was blamed.
+
 ## What this is not
 
 Not a chart for a stateful game backend (a database per instance needs an operator), and not a
