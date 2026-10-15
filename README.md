@@ -1,5 +1,7 @@
 # k8s-game-server-charts
 
+[![ci](https://github.com/lasttoss/k8s-game-server-charts/actions/workflows/ci.yml/badge.svg)](https://github.com/lasttoss/k8s-game-server-charts/actions/workflows/ci.yml)
+
 A Helm chart for a game server on Kubernetes, and the two things a game server needs that a web API does
 not: a rollout that does not disconnect the matches in progress, and probes that tell a database blip
 apart from a dead pod.
